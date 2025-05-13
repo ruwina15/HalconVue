@@ -1,91 +1,36 @@
 <script setup>
-import { ref } from 'vue'
+import { ref } from "vue";
 
-const clienteId = ref('')
-const ordenId = ref('')
-const error = ref('')
-const resultado = ref(null)
+const clienteId = ref("");
+const ordenId = ref("");
+const error = ref("");
+const resultado = ref(null);
 
-// Lista de pedidos 
-const orders = [
-  {
-    client_id: 10,
-    client_name: 'Lue Luettgen',
-    order_id: 11,
-    status: 'delivered',
-    total: 34.36,
-    products: [
-      {
-        id: 1,
-        name: 'Prof. Dimitri Keebler',
-        price: 8.59,
-        quantity: 4,
-        subtotal: 34.36
-      }
-    ]
-  },
-  {
-    client_id: 11,
-    client_name: 'Muriel Rowe III',
-    order_id: 20,
-    status: 'shipped',
-    total: 76.92,
-    products: [
-      {
-        id: 10,
-        name: 'Sienna Kuhlman',
-        price: 76.92,
-        quantity: 1,
-        subtotal: 76.92
-      }
-    ]
-  },
-  {
-    client_id: 4,
-    client_name: 'Eleanor Thompson',
-    order_id: 15,
-    status: 'delivered',
-    total: 120.45,
-    products: [
-      {
-        id: 15,
-        name: 'Smartphone X1000',
-        price: 120.45,
-        quantity: 1,
-        subtotal: 120.45
-      }
-    ]
-  },
-]
+async function buscarOrden() {
+  error.value = "";
+  resultado.value = null;
 
-// Función de búsqueda flexible
-function buscarOrden() {
-  error.value = ''
-  resultado.value = null
-
-  if (!clienteId.value && !ordenId.value) {
-    error.value = 'Debes ingresar al menos un ID.'
-    return
+  if (!clienteId.value || !ordenId.value) {
+    error.value = "Debes ingresar ClienteID y OrdenID.";
+    return;
   }
 
-  const match = orders.find(order => {
-    const clienteCoincide = clienteId.value && parseInt(clienteId.value) === order.client_id
-    const ordenCoincide = ordenId.value && parseInt(ordenId.value) === order.order_id
-
-    if (clienteId.value && ordenId.value) {
-      return clienteCoincide && ordenCoincide
-    } else if (clienteId.value) {
-      return clienteCoincide
-    } else if (ordenId.value) {
-      return ordenCoincide
+  try {
+    const res = await fetch(
+      `http://localhost:8000/api/order?clientId=${clienteId.value}&orderId=${ordenId.value}`
+    );
+    if (!res.ok) {
+      if (res.status === 404) {
+        error.value = "Orden no encontrada.";
+      } else {
+        error.value = `Error al obtener la orden: ${res.status} ${res.statusText}`;
+      }
+      return;
     }
-    return false
-  })
-
-  if (match) {
-    resultado.value = match
-  } else {
-    error.value = 'No se encontró ninguna orden que coincida con los datos ingresados.'
+    const data = await res.json();
+    resultado.value = data;
+  } catch (err) {
+    error.value = "Error de red: " + err.message;
   }
 }
 </script>
@@ -111,13 +56,32 @@ function buscarOrden() {
       <p><strong>ID de Orden:</strong> {{ resultado.order_id }}</p>
       <p>
         <strong>Estado:</strong>
-        <span :class="'status ' + resultado.status">{{ resultado.status }}</span>
+        <span :class="'status ' + resultado.status">{{
+          resultado.status
+        }}</span>
       </p>
       <p><strong>Total:</strong> ${{ resultado.total.toFixed(2) }}</p>
 
+      <h3>Dirección de envío</h3>
+      <div class="address">
+        <p>
+          {{ resultado.address.street }}
+          {{ resultado.address.external_number }},
+          {{ resultado.address.colony }}
+        </p>
+        <p>
+          {{ resultado.address.city }}, {{ resultado.address.state }}
+          {{ resultado.address.zip_code }}, {{ resultado.address.country }}
+        </p>
+      </div>
+
       <h3>Productos</h3>
       <ul class="product-list">
-        <li v-for="product in resultado.products" :key="product.id" class="product-item">
+        <li
+          v-for="product in resultado.products"
+          :key="product.id"
+          class="product-item"
+        >
           <div class="name">{{ product.name }}</div>
           <div class="details">
             {{ product.quantity }} × ${{ product.price.toFixed(2) }} =
@@ -130,96 +94,139 @@ function buscarOrden() {
 </template>
 
 <style>
- body {
-    background-color: #eed590; 
-
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-    color: #333;
-  }
-
+@import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap");
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f2f5;
+  font-family: "Open Sans", Arial, sans-serif;
+  color: #333;
+}
 .app {
+  width: 100%;
+  max-width: 800px;
   padding: 2rem;
-  font-family: Arial, sans-serif;
-  max-width: 700px;
-  margin: 0 auto;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
-
+h1 {
+  text-align: center;
+  color: #343a40;
+  margin-bottom: 2rem;
+}
 .form {
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
-
-input {
-  margin-right: 10px;
-  padding: 5px;
+.form label {
+  font-weight: 600;
+}
+.form input {
+  width: 120px;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
   border-radius: 4px;
-  border: 1px solid #ccc;
+  background: #fff;
+  transition: border-color 0.2s;
 }
-
+.form input:focus {
+  border-color: #80bdff;
+  outline: none;
+}
 button {
-  padding: 6px 12px;
+  padding: 8px 16px;
+  background-color: #007bff;
   border: none;
-  background-color: #e99075;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #cd725d;
-}
-
-.error {
-  color: red;
-  margin-top: 1rem;
-}
-
-.order-card {
-  padding: 1.5rem;
-  background-color: #ffebd5;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.status {
-  padding: 0.2rem 0.6rem;
   border-radius: 4px;
   color: #fff;
-  font-weight: bold;
-  text-transform: capitalize;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
-
+button:hover {
+  background-color: #0056b3;
+}
+.error {
+  color: #d9534f;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 1rem;
+}
+.order-card {
+  background: #fff;
+  width: 100%;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-top: 2rem;
+}
+.order-card h2 {
+  margin-top: 0;
+  color: #007bff;
+}
+h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #343a40;
+}
+.status {
+  padding: 0.3rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 .status.delivered {
-  background-color: #38a169;
+  background-color: #28a745;
 }
-
 .status.shipped {
-  background-color: #38bdf8;
+  background-color: #17a2b8;
 }
-
 .product-list {
   list-style: none;
   padding: 0;
   margin-top: 1rem;
 }
-
 .product-item {
-  border-top: 1px solid #eee;
-  padding: 1rem 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e9ecef;
 }
-
-.product-item:first-child {
-  border-top: none;
+.product-item:last-child {
+  border-bottom: none;
 }
-
 .name {
   font-weight: 600;
   font-size: 1.1rem;
+  color: #343a40;
 }
-
 .details {
-  color: #555;
+  color: #6c757d;
+}
+.address {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  margin: 1rem 0 1.5rem;
+}
+.address p {
+  margin: 0.2rem 0;
+  color: #495057;
 }
 </style>
